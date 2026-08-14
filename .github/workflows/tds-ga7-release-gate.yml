@@ -91,4 +91,5 @@ jobs:
           echo "$RESPONSE" | grep -q '"decision":"block"'
 
       - name: "TDS identity: 26ds1000040@ds.study.iitm.ac.in"
-        run: echo "TDS identity: 26ds1000040@ds.study.iitm.ac.in"
+        run: |
+          echo "TDS identity: 26ds1000040@ds.study.iitm.ac.in"
