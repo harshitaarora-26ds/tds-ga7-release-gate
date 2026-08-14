@@ -1,0 +1,94 @@
+name: TDS GA7 Release Gate
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run policy unit tests
+        run: npm test
+
+      - name: Start server
+        run: |
+          nohup npm start > server.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000/ > /dev/null; then
+              echo "server is up"
+              break
+            fi
+            sleep 0.5
+          done
+
+      - name: Smoke test safe payload promotes
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:3000/release-gate \
+            -H "Content-Type: application/json" \
+            -d '{
+              "target": "preview",
+              "event": "push",
+              "ref": "refs/heads/feature-x",
+              "workflow": {
+                "trigger": "push",
+                "permissions": {"contents":"read","packages":"write","id-token":"none"},
+                "testsPassed": true,
+                "matrixComplete": true,
+                "failFast": false,
+                "actions": [{"owner":"actions","name":"checkout","ref":"v4"}]
+              },
+              "image": {
+                "multiStage": true,
+                "runsAsRoot": false,
+                "secretMode": "none",
+                "criticalVulnerabilities": 0,
+                "digestPinned": true
+              }
+            }')
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -q '"decision":"promote"'
+
+      - name: Smoke test unsafe payload blocks
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:3000/release-gate \
+            -H "Content-Type: application/json" \
+            -d '{
+              "target": "production",
+              "event": "pull_request",
+              "ref": "refs/heads/feature-x",
+              "workflow": {
+                "trigger": "pull_request_target",
+                "permissions": {"contents":"write","packages":"write","id-token":"write"},
+                "testsPassed": false,
+                "matrixComplete": false,
+                "failFast": true,
+                "actions": [{"owner":"someorg","name":"some-action","ref":"main"}]
+              },
+              "image": {
+                "multiStage": false,
+                "runsAsRoot": true,
+                "secretMode": "copy",
+                "criticalVulnerabilities": 2,
+                "digestPinned": false
+              }
+            }')
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -q '"decision":"block"'
+
+      - name: TDS identity: 26ds1000040@ds.study.iitm.ac.in
+        run: echo "TDS identity: 26ds1000040@ds.study.iitm.ac.in"

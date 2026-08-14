@@ -1,0 +1,14 @@
+{
+  "name": "tds-ga7-release-gate",
+  "version": "1.0.0",
+  "description": "Deterministic release-gate policy endpoint for TDS GA7",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/run-tests.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
